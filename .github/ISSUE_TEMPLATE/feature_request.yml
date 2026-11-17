@@ -1,0 +1,16 @@
+name: Idea or improvement
+description: Suggest a new feature or a better way to do something.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like Trailr to do?
+      description: Describe the problem or the kind of film you want to make.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?
+      description: Optional. Any idea of how it could be done.

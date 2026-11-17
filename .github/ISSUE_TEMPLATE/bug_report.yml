@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in Trailr does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please remove any API keys, tokens or private URLs from logs before pasting them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you ask Trailr to do, and what went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. /trailr Make a 30-second ...
+        2. ...
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of doctor.js
+      description: Run `node ~/.claude/skills/trailr/scripts/doctor.js` and paste the result.
+      render: text
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "e.g. Windows 11, Claude Code 2.x, Node 20"

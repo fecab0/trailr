@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trailr film</title>
+<!--
+  Trailr composition skeleton. Every pixel is a pure function of time: render(t).
+  Copy into trailr-output/, then replace the demo scenes with the approved script's scenes.
+  - Copy (all on-screen text) lives in script.json -> script.js. Never type copy here: use data-text="scene:index".
+  - Times are beats from a scene start (data-scene + data-in, at('scene', beat)), never absolute seconds.
+  - Fonts: copy @fontsource files into ./fonts and declare them below (Google Fonts is often unreachable).
+  The demo shows: split headline, camera whip between panels, a guide that hops, typing, counter,
+  stamp, iris into the end card, grain, SFX cues. Delete what the film doesn't use.
+-->
+<style>
+  /* @font-face{font-family:'Display';src:url('fonts/display-700.woff2') format('woff2');font-weight:700;font-display:block} */
+  :root{
+    --bg:#101014; --ink:#f4f2ec; --muted:#8b8b94; --accent:#c1ff4c; --card:#1b1b21; --line:#2a2a33;
+    --display:'Display','Inter','Segoe UI',system-ui,sans-serif;
+    --body:'Inter','Segoe UI',system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:relative;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--body)}
+  .layer{position:absolute;inset:0;pointer-events:none}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0}
+  .panel{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;text-align:center}
+  .h1{font-family:var(--display);font-weight:700;letter-spacing:-.03em;line-height:1.02;margin:0;max-width:min(16ch,88%)}
+  body.vertical .h1{max-width:min(9ch,86%)} /* 2–3 words per line on a phone */
+  .h1 em{font-style:normal;color:var(--accent)}
+  .split .w{display:inline-block;white-space:pre}
+  .card{box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:28px;padding:44px 56px;box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:left;min-width:640px}
+  .mono{font-family:var(--mono);color:var(--muted);font-size:26px}
+  .big{font-family:var(--display);font-weight:700;font-size:120px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+  .caret{display:inline-block;width:.08em;height:1em;background:var(--accent);vertical-align:-.12em;margin-left:.06em}
+  .stamp{position:absolute;right:-50px;bottom:-40px;border:6px solid var(--accent);color:var(--accent);border-radius:18px;padding:10px 24px;font:800 40px/1 var(--display);text-transform:uppercase;letter-spacing:.04em}
+  #guide{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:14px;background:var(--accent);box-shadow:0 0 40px rgba(193,255,76,.55)}
+  #end{background:var(--accent);color:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+  #end .wordmark{font:800 150px/1 var(--display);letter-spacing:-.05em}
+  #end .tag{font:600 46px/1.2 var(--display)}
+  #end .pill{font:600 34px/1 var(--body);border:3px solid var(--bg);border-radius:999px;padding:18px 40px}
+  #grain{opacity:.07;mix-blend-mode:overlay;background-repeat:repeat}
+  #vignette{background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.45))}
+  body.vertical .card{min-width:0;width:820px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="layer" id="cam"><div id="world">
+    <section class="panel" id="p-hook">
+      <h1 class="h1 split" data-scene="hook" data-in="0.5" data-st="0.5" data-text="hook:0" data-sfx="pop"></h1>
+    </section>
+    <section class="panel" id="p-proof">
+      <h1 class="h1 split" data-scene="proof" data-in="0.5" data-st="0.25" data-text="proof:0"></h1>
+      <div class="card" data-scene="proof" data-in="2" data-fx="rise" data-sfx="whoosh" style="position:relative">
+        <div class="mono"><span class="type" data-scene="proof" data-t0="3" data-t1="6" data-text="proof:1" data-sfx="type"></span></div>
+        <div class="big"><span class="count" data-scene="proof" data-from="0" data-to="1324965" data-t0="5" data-t1="9" data-locale="es-ES" data-prefix="€"></span></div>
+        <div class="stamp" data-scene="proof" data-in="9.5" data-fx="stamp" data-base="rotate(-8deg)" data-sfx="stamp">Demo</div>
+      </div>
+    </section>
+  </div></div>
+  <div class="layer" id="guide"></div>
+  <div class="layer" id="end">
+    <div class="wordmark" data-text="end:0" data-scene="end" data-in="0.75" data-fx="pop"></div>
+    <div class="tag" data-text="end:1" data-scene="end" data-in="1.5" data-fx="rise"></div>
+    <div class="pill" data-text="end:2" data-scene="end" data-in="2.25" data-fx="rise" data-sfx="pop"></div>
+  </div>
+  <canvas class="layer" id="grain"></canvas>
+  <div class="layer" id="vignette"></div>
+</div>
+<svg width="0" height="0" style="position:absolute"><filter id="mblur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="mblurG" stdDeviation="0 0"/></filter></svg>
+
+<script src="script.js"></script>
+<script>
+'use strict';
+// ---------- format
+const FORMAT = new URLSearchParams(location.search).get('format') || 'horizontal';
+const [W, H] = { horizontal: [1920, 1080], vertical: [1080, 1920], square: [1080, 1080] }[FORMAT];
+const V = FORMAT === 'vertical';
+document.body.classList.toggle('vertical', V);
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+
+// ---------- timing: computed once by build-script.js, read here
+if (!window.SCRIPT || !window.TIMING) throw new Error('script.js missing: run build-script.js on script.json');
+const BPM = TIMING.bpm, BEAT = 60 / BPM, BAR = 4 * BEAT;
+const S = Object.fromEntries(TIMING.scenes.map(s => [s.id, s]));
+const at = (id, beat = 0) => { if (!S[id]) throw new Error(`Unknown scene: ${id}`); return S[id].start + beat * BEAT; };
+window.TIMELINE = { bpm: BPM, total: TIMING.total, scenes: TIMING.scenes.map(({ id, start, dur, section }) => ({ id, start, dur, section })) };
+
+// ---------- math
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  lin: x => x,
+  out: x => 1 - Math.pow(1 - x, 3),
+  io: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  expo: x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x),
+  xio: x => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2,
+  back: x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+  in: x => x * x * x,
+};
+const P = (t, a, b, e = E.out) => e(clamp((t - a) / (b - a)));
+function rng(seed) { let s = (seed >>> 0) || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+
+// ---------- copy from script.json (*word* -> accent)
+const escHTML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lineHTML = s => escHTML(s).replace(/\*(.+?)\*/g, '<em>$1</em>');
+document.querySelectorAll('[data-text]').forEach(el => {
+  const [scene, i] = el.dataset.text.split(':');
+  const row = SCRIPT.scenes.find(r => r.scene === scene);
+  const line = row && row.text && row.text[+i];
+  if (line == null) throw new Error(`script.json has no text ${el.dataset.text}`);
+  if (el.classList.contains('type')) el.dataset.full = String(line).replace(/\*/g, '');
+  else el.innerHTML = lineHTML(line);
+});
+
+// ---------- SFX cues: static, built once (never inside render)
+const SFX = [];
+const cue = (t, type, gain = 1, pan = 0) => SFX.push({ t: +t.toFixed(3), type, gain, pan });
+window.SFX = SFX;
+
+// ---------- split headlines: words become inline-blocks with staggered times; <em> stays one unit
+document.querySelectorAll('.split').forEach(el => {
+  const t0 = +el.dataset.in, st = +(el.dataset.st || .25), scene = el.dataset.scene;
+  // units keep whether whitespace preceded them, so "film." stays "film." and not "film ."
+  const units = [];
+  let space = false;
+  [...el.childNodes].forEach(node => {
+    if (node.nodeType === 3) node.textContent.split(/(\s+)/).forEach(w => {
+      if (!w) return;
+      if (!w.trim()) { space = true; return; }
+      units.push({ html: escHTML(w), space }); space = false;
+    });
+    else { units.push({ html: node.outerHTML, space }); space = false; }
+  });
+  el.innerHTML = units.map((u, i) => `${i && u.space ? ' ' : ''}<span class="w" data-scene="${scene}" data-in="${t0 + i * st}" data-fx="word">${u.html}</span>`).join('');
+  if (el.dataset.sfx) units.forEach((_, i) => cue(at(scene, t0 + i * st), el.dataset.sfx, .5));
+  delete el.dataset.in;
+});
+
+// ---------- declarative reveals
+const FX = {
+  rise: p => ({ o: p, tf: `translateY(${(1 - p) * 40}px)`, blur: (1 - p) * 8 }),
+  word: p => ({ o: p, tf: `translateY(${(1 - p) * .45}em)`, blur: (1 - p) * 12 }),
+  pop: p => ({ o: clamp(p * 3), tf: `scale(${lerp(.6, 1, p)})`, blur: 0 }),
+  right: p => ({ o: p, tf: `translateX(${(1 - p) * -60}px)`, blur: (1 - p) * 6 }),
+  fade: p => ({ o: p, tf: '', blur: 0 }),
+  stamp: p => ({ o: clamp(p * 4), tf: `scale(${lerp(2.4, 1, p)})`, blur: 0 }),
+};
+const EASE_FOR = { word: E.expo, pop: E.back, stamp: E.in, rise: E.expo, right: E.expo, fade: E.out };
+const reveals = [...document.querySelectorAll('[data-in][data-scene]')].map(el => {
+  const fx = el.dataset.fx || 'rise';
+  const tin = at(el.dataset.scene, +el.dataset.in);
+  const dur = (el.dataset.dur ? +el.dataset.dur * BEAT : fx === 'stamp' ? .22 : .6);
+  if (el.dataset.sfx && !el.classList.contains('w')) cue(fx === 'stamp' ? tin + dur : tin, el.dataset.sfx, .8);
+  return { el, fx, tin, dur, tout: el.dataset.out != null ? at(el.dataset.scene, +el.dataset.out) : null, base: el.dataset.base || '' };
+});
+const typers = [...document.querySelectorAll('.type')].map(el => {
+  const t0 = at(el.dataset.scene, +el.dataset.t0), t1 = at(el.dataset.scene, +el.dataset.t1), full = el.dataset.full;
+  if (el.dataset.sfx) for (let i = 0; i < full.length; i += 2) cue(lerp(t0, t1, i / full.length), el.dataset.sfx, .35, .2);
+  return { el, t0, t1, full };
+});
+const counters = [...document.querySelectorAll('.count')].map(el => {
+  const d = el.dataset, nf = new Intl.NumberFormat(d.locale || 'en-US', { maximumFractionDigits: +(d.dec || 0), minimumFractionDigits: +(d.dec || 0) });
+  return { el, from: +d.from, to: +d.to, t0: at(d.scene, +d.t0), t1: at(d.scene, +d.t1), fmt: v => (d.prefix || '') + nf.format(v) + (d.suffix || '') };
+});
+
+// ---------- world layout + camera. Panels are seen one at a time; never frame the whole grid.
+const SP = V ? { x: 1200, y: 2100 } : { x: 2200, y: 1300 };
+const PANELS = { hook: [0, 0], proof: V ? [0, 1] : [1, 0] }; // grid cells
+for (const [id, [cx, cy]] of Object.entries(PANELS)) {
+  const el = document.getElementById('p-' + id);
+  Object.assign(el.style, { left: (cx * SP.x - W / 2) + 'px', top: (cy * SP.y - H / 2) + 'px', width: W + 'px', height: H + 'px' });
+  el.querySelectorAll('.h1').forEach(h => h.style.fontSize = (V ? 120 : 132) + 'px');
+}
+const cell = id => [PANELS[id][0] * SP.x, PANELS[id][1] * SP.y];
+// keyframes [t, cx, cy, scale, ease-into-this-key]
+const CAM = [
+  [0, ...cell('hook'), 1.08, E.lin],
+  [at('hook', 3), ...cell('hook'), 1.0, E.io],
+  [at('proof') - .35, ...cell('hook'), 1.0, E.lin],
+  [at('proof') + .35, ...cell('proof'), 1.0, E.xio],     // whip on the cut
+  [at('end'), ...cell('proof'), 1.06, E.io],
+];
+cue(at('proof') - .3, 'whoosh', .7);
+function camAt(t) {
+  let i = 0; while (i < CAM.length - 1 && t >= CAM[i + 1][0]) i++;
+  const a = CAM[i], b = CAM[Math.min(i + 1, CAM.length - 1)];
+  if (a === b || t <= a[0]) return { x: a[1], y: a[2], s: a[3] };
+  const p = b[4](clamp((t - a[0]) / (b[0] - a[0])));
+  return { x: lerp(a[1], b[1], p), y: lerp(a[2], b[2], p), s: Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), p)) };
+}
+const world = document.getElementById('world'), cam = document.getElementById('cam'), blurG = document.getElementById('mblurG');
+const toScreen = (c, x, y) => [W / 2 + (x - c.x) * c.s, H / 2 + (y - c.y) * c.s];
+
+// ---------- guide: hops between world-space points, lands on the end card
+const GX = V ? .7 : 1; // narrower frame: pull side positions in
+const near = (id, dx, dy) => { const [x, y] = cell(id); return [x + dx * GX, y + dy]; };
+const GUIDE = [ // [t, wx, wy]: offsets from panel centers
+  [at('hook', 0), ...near('hook', -520, 210)],
+  [at('proof', 1), ...near('proof', -560, 60)],    // beside the card, off the headline
+  [at('proof', 6), ...near('proof', 520, 230)],
+];
+const guide = document.getElementById('guide');
+function guideAt(t, c) {
+  let i = 0; while (i < GUIDE.length - 1 && t >= GUIDE[i + 1][0]) i++;
+  const a = GUIDE[i], b = GUIDE[Math.min(i + 1, GUIDE.length - 1)];
+  const hop = .7; // seconds, landing on b's time
+  const p = a === b ? 0 : clamp((t - (b[0] - hop)) / hop);
+  const e = E.io(p);
+  const x = lerp(a[1], b[1], e), y = lerp(a[2], b[2], e) - Math.sin(Math.PI * p) * 220; // parabolic hop
+  const bob = Math.sin(t * Math.PI * 2 / (BEAT * 2)) * 6 * (1 - Math.sin(Math.PI * p));
+  return toScreen(c, x, y + bob);
+}
+GUIDE.slice(1).forEach(g => cue(g[0], 'tap', .6));
+
+// ---------- end card: iris from the guide on the cut
+const endEl = document.getElementById('end');
+cue(at('end'), 'impact', .8);
+
+// ---------- grain: drawn once, jittered per frame (cheap; never feTurbulence)
+const grain = document.getElementById('grain');
+(() => { const g = 256, c = document.createElement('canvas'); c.width = c.height = g; const x = c.getContext('2d'), d = x.createImageData(g, g), r = rng(9);
+  for (let i = 0; i < d.data.length; i += 4) { const v = r() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  x.putImageData(d, 0, 0); grain.style.backgroundImage = `url(${c.toDataURL()})`; })();
+
+// ---------- render(t): pure function of time
+let prevCam = null;
+function render(t) {
+  t = clamp(t, 0, TIMING.total);
+  // camera + directional motion blur from screen-space velocity
+  const c = camAt(t), c2 = camAt(Math.max(0, t - 1 / 60));
+  world.style.transform = `translate(${W / 2 - c.x * c.s}px,${H / 2 - c.y * c.s}px) scale(${c.s})`;
+  const vx = Math.abs(c.x - c2.x) * c.s, vy = Math.abs(c.y - c2.y) * c.s;
+  if (vx + vy > 2) { blurG.setAttribute('stdDeviation', `${Math.min(60, vx * .35)} ${Math.min(60, vy * .35)}`); cam.style.filter = 'url(#mblur)'; }
+  else cam.style.filter = 'none';
+
+  for (const r of reveals) {
+    const p = P(t, r.tin, r.tin + r.dur, EASE_FOR[r.fx] || E.out);
+    const f = FX[r.fx](p);
+    let o = f.o;
+    if (r.tout != null) o *= 1 - P(t, r.tout, r.tout + .35, E.io);
+    r.el.style.opacity = o;
+    r.el.style.transform = `${f.tf} ${r.base}`.trim();
+    r.el.style.filter = f.blur > .05 ? `blur(${f.blur}px)` : 'none';
+  }
+  for (const y of typers) {
+    const n = Math.round(y.full.length * P(t, y.t0, y.t1, E.lin));
+    const blink = t > y.t1 && Math.floor((t - y.t1) / (BEAT / 2)) % 2 === 1;
+    y.el.innerHTML = escHTML(y.full.slice(0, n)) + (t >= y.t0 && !blink ? '<span class="caret"></span>' : '');
+  }
+  for (const k of counters) k.el.textContent = k.fmt(Math.round(lerp(k.from, k.to, P(t, k.t0, k.t1, E.expo))));
+
+  const [gx, gy] = guideAt(t, c);
+  guide.style.transform = `translate(${gx}px,${gy}px)`;
+
+  // iris into the end card from the guide's position; the guide is swallowed by it
+  const ip = P(t, at('end'), at('end') + .6, E.expo);
+  endEl.style.clipPath = `circle(${ip * Math.hypot(W, H)}px at ${gx}px ${gy}px)`;
+  endEl.style.visibility = ip > 0 ? 'visible' : 'hidden';
+  guide.style.opacity = ip > .15 ? 0 : 1;
+
+  const gf = Math.floor(t * 24);
+  grain.style.backgroundPosition = `${(gf * 73) % 256}px ${(gf * 151) % 256}px`;
+}
+window.render = render;
+window.__ready = document.fonts.ready;
+render(0);
+</script>
+</body>
+</html>

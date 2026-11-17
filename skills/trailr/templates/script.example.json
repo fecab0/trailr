@@ -1,0 +1,32 @@
+{
+  "title": "Example film",
+  "format": "horizontal",
+  "pace": "normal",
+  "target_sec": 14,
+  "scenes": [
+    {
+      "scene": "hook",
+      "section": "intro",
+      "bars": 2,
+      "text": ["Your launch deserves a *film*."],
+      "source": ["proposal"],
+      "music": "soft pad, one pluck per bar"
+    },
+    {
+      "scene": "proof",
+      "section": "groove",
+      "bars": 3,
+      "text": ["Every frame is *code*.", "render(t) → frame"],
+      "source": ["proposal", "proposal"],
+      "music": "groove: kick, clap, bass, arps"
+    },
+    {
+      "scene": "end",
+      "section": "end",
+      "bars": 2,
+      "text": ["Brand", "Made for launch day.", "example.com"],
+      "source": ["brand", "proposal", "brand"],
+      "music": "final chord"
+    }
+  ]
+}

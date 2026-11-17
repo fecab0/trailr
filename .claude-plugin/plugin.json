@@ -1,0 +1,13 @@
+{
+  "name": "trailr",
+  "description": "Turn your product into a launch film: animated, on-brand, with music, motion and editable source.",
+  "version": "0.1.0",
+  "author": {
+    "name": "The Trailr authors",
+    "url": "https://github.com/fecab0/trailr"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/fecab0/trailr",
+  "repository": "https://github.com/fecab0/trailr",
+  "keywords": ["video", "launch-video", "motion-graphics", "skill"]
+}

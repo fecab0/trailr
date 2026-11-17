@@ -1,0 +1,15 @@
+{
+  "name": "trailr",
+  "description": "Trailr: a skill that turns your product into a launch film.",
+  "owner": {
+    "name": "The Trailr authors",
+    "url": "https://github.com/fecab0/trailr"
+  },
+  "plugins": [
+    {
+      "name": "trailr",
+      "source": "./",
+      "description": "Animated, on-brand launch films with music, motion and editable source. Run /trailr."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+name: Made with Trailr
+description: Share a film you made with Trailr.
+labels: ["showcase"]
+body:
+  - type: input
+    id: link
+    attributes:
+      label: Link to your film
+    validations:
+      required: true
+  - type: textarea
+    id: about
+    attributes:
+      label: Tell us about it
+      description: What is the product, and anything you liked or missed in Trailr.
+  - type: checkboxes
+    id: ok
+    attributes:
+      label: Permission
+      options:
+        - label: You may feature this film in the Trailr README.
